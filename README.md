@@ -1,96 +1,121 @@
 # Snake RL
 
-A small Snake game written in C++17. The game rules live in a separate engine, while the terminal app handles input and drawing.
+A fast, lightweight Snake game and reinforcement learning (RL) environment written in C++17. The project cleanly separates core game mechanics and state representation from the interactive terminal interface, serving as a high-performance foundation for training RL agents.
 
-The engine returns a reward after each move. It also exposes the board as a byte buffer. This gives the project a starting point for future RL work. There is no training code or AI player yet.
+---
 
-## Current state
+## Features
 
-The project builds and the terminal app is playable. The game loop runs interactively with real-time rendering, keyboard input (WASD or arrow keys), and score tracking.
+- **Decoupled Architecture**: Pure C++ engine with zero GUI/terminal dependencies, ideal for headless simulation and batch rollout.
+- **RL-Ready State Tensor**: Built-in 3-plane spatial state buffer (`head`, `body`, `food`) representing the board for convolutional neural networks.
+- **Relative Action Space**: Supports egocentric relative turns (`FORWARD`, `LEFT`, `RIGHT`) to simplify policy learning.
+- **Interactive Terminal App**: Real-time playable console app featuring ANSI escape rendering and non-blocking POSIX keyboard polling.
+
+---
 
 ## Requirements
 
-- A C++17 compiler, such as GCC or Clang
-- CMake 3.16 or newer
-- Make or Ninja
-- A terminal with ANSI escape support
+- **C++ Compiler**: C++17 compliant compiler (GCC 9+, Clang 10+)
+- **Build System**: CMake 3.16+ and Make or Ninja
+- **Operating System**: Linux or POSIX-compliant system (uses POSIX `termios` and `poll` for terminal input)
 
-The terminal app uses POSIX calls for keyboard input. Use Linux or another system with these calls. Windows is not supported by the current app.
+---
 
-## Build and run
+## Quick Start
 
-From the project folder:
+### Build
 
 ```sh
 cmake -S . -B build
 cmake --build build
+```
+
+### Run Interactive Terminal Game
+
+```sh
 ./build/snake
 ```
 
-Run the app in a terminal, not an IDE output panel.
+> **Note**: Run the binary directly inside a standard terminal emulator with ANSI escape sequence support rather than an embedded IDE output pane.
+
+---
 
 ## Controls
 
 | Key | Action |
-| --- | --- |
-| W or Up arrow | Move up |
-| S or Down arrow | Move down |
-| A or Left arrow | Move left |
-| D or Right arrow | Move right |
-| Q or Escape | Quit |
+| :--- | :--- |
+| <kbd>W</kbd> or <kbd>&uarr;</kbd> | Move Up |
+| <kbd>S</kbd> or <kbd>&darr;</kbd> | Move Down |
+| <kbd>A</kbd> or <kbd>&larr;</kbd> | Move Left |
+| <kbd>D</kbd> or <kbd>&rarr;</kbd> | Move Right |
+| <kbd>Q</kbd> or <kbd>Esc</kbd> | Quit Game |
 
-The snake cannot turn straight back into itself. An opposite-direction input keeps it moving forward.
+- The game runs at a default tick interval of 100 ms on a 20 &times; 15 board (configurable in [`src/app/main.cpp`](src/app/main.cpp)).
+- The snake cannot reverse 180 degrees into itself; opposite-direction inputs are treated as moving forward.
+- The board displays `@` for the snake head, `o` for body segments, and `*` for food.
 
-The board uses `@` for the head, `o` for the body, and `*` for food. Eating food adds one point. Hitting a wall or the body ends the game.
+---
 
-The app uses a 20 by 15 board and a 100 ms tick interval. These values are set near the start of `main()` in `src/app/main.cpp`.
+## Reinforcement Learning Interface
 
-## Project layout
+### Action Space
+
+The engine uses a discrete 3-action relative action space:
+
+| Action | Enum | Description |
+| :--- | :--- | :--- |
+| `0` | `Action::FORWARD` | Continue moving in the current heading |
+| `1` | `Action::LEFT` | Turn 90&deg; counter-clockwise, then move |
+| `2` | `Action::RIGHT` | Turn 90&deg; clockwise, then move |
+
+### Observation Representation
+
+`SnakeEngine::getBoardBuffer()` returns a flattened `std::vector<uint8_t>` representing a 3-channel binary spatial tensor of dimensions **(3, Height, Width)**:
+
+- **Channel 0**: Snake head position ($1$ where head is located, $0$ elsewhere)
+- **Channel 1**: Snake body segments ($1$ on body segments, $0$ elsewhere)
+- **Channel 2**: Food position ($1$ on food cell, $0$ elsewhere)
+
+Index offset for coordinate `(x, y)` in channel `c`:
+$$\text{index} = c \times (\text{width} \times \text{height}) + y \times \text{width} + x$$
+
+### Reward Structure
+
+Each invocation of `SnakeEngine::step(action)` returns a `StepResult` struct containing:
+- `reward` (`float`)
+- `done` (`bool`)
+- `score` (`int`)
+
+| Event | Reward | Terminal (`done`) |
+| :--- | :---: | :---: |
+| Normal step | `0.0` | `false` |
+| Food collected | `+10.0` | `false` |
+| Wall collision | `-10.0` | `true` |
+| Self collision | `-10.0` | `true` |
+| Board completed | `+100.0` | `true` |
+
+---
+
+## Project Structure
 
 ```text
 .
 ├── CMakeLists.txt
 ├── include/
 │   └── snake/
-│       └── engine.hpp
+│       └── engine.hpp       # SnakeEngine class, enums, structs (Point, StepResult)
 └── src/
     ├── app/
-    │   └── main.cpp
+    │   └── main.cpp         # Terminal controller, ANSI renderer, game loop
     └── engine/
-        └── engine.cpp
+        └── engine.cpp       # Engine logic, state transitions, buffer updates
 ```
 
-- `engine.hpp` defines the engine, actions, points, and step results.
-- `engine.cpp` handles movement, food, collisions, and board state.
-- `main.cpp` reads keys and draws the game in the terminal.
+---
 
-## Engine API
+## Roadmap
 
-Create a `SnakeEngine` with a board width and height. Call `reset()` to start a new game. Each call to `step()` moves the snake once.
-
-The engine accepts three actions:
-
-- `Action::FORWARD`: keep the current direction
-- `Action::LEFT`: turn left, then move
-- `Action::RIGHT`: turn right, then move
-
-Each step returns a `StepResult` with `reward`, `done`, and `score`.
-
-| Result | Reward |
-| --- | --- |
-| Normal move | 0 |
-| Eat food | 10 |
-| Hit a wall or the body | -10 |
-| Fill the board | 100 |
-
-`getBoardBuffer()` returns three flat layers: head, body, and food. Each layer has `width * height` entries. A cell is `1` when occupied and `0` otherwise. The cell index within a layer is `y * width + x`.
-
-## Build check
-
-To check compilation after a change:
-
-```sh
-cmake --build build
-```
-
-There are no automated tests yet. A successful build only checks that the code compiles and links.
+- [ ] Python bindings via `pybind11` for direct NumPy tensor export.
+- [ ] Gymnasium (OpenAI Gym) compatible Python environment wrapper.
+- [ ] Deep Q-Network (DQN) / PPO reinforcement learning training pipeline.
+- [ ] Automated unit test suite with CTest.
