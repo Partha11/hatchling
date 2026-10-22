@@ -6,7 +6,7 @@ The engine returns a reward after each move. It also exposes the board as a byte
 
 ## Current state
 
-The project builds, but the terminal app still needs work. It currently exits after one game update because `return 0` is inside the game loop. The top and bottom borders are also shorter than the drawn rows.
+The project builds and the terminal app is playable. The game loop runs interactively with real-time rendering, keyboard input (WASD or arrow keys), and score tracking.
 
 ## Requirements
 

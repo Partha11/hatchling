@@ -59,7 +59,7 @@ class TerminalController {
 
     private:
         struct termios orig_termios_;
-};;
+};
 
 Action getRelativeAction(Direction currentDirection, char key) {
     Direction desiredDirection = currentDirection;
@@ -100,7 +100,7 @@ void render(const SnakeEngine& game) {
     std::cout << "\033[H";
 
     std::cout << "+";
-    for (int x = 0; x < width; ++x) {
+    for (int x = 0; x < width * 2; ++x) {
         std::cout << "-";
     }
     std::cout << "+\n";
@@ -126,7 +126,7 @@ void render(const SnakeEngine& game) {
     }
 
     std::cout << "+";
-    for (int x = 0; x < width; ++x) {
+    for (int x = 0; x < width * 2; ++x) {
         std::cout << "-";
     }
     std::cout << "+\n";
@@ -147,6 +147,7 @@ int main() {
     SnakeEngine game(WIDTH, HEIGHT);
 
     game.reset();
+    render(game);
 
     bool running = true;
     int lastKey = -1;
@@ -187,7 +188,7 @@ int main() {
         if (elapsed < TICK_INTERVAL) {
             std::this_thread::sleep_for(TICK_INTERVAL - elapsed);
         }
-
-        return 0;
     }
+
+    return 0;
 }
