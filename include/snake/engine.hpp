@@ -1,20 +1,20 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <vector>
-#include <cstdint>
 
-enum class Action: uint8_t {
+enum class Action : uint8_t {
     FORWARD,
     LEFT,
     RIGHT
 };
 
-enum class Direction: uint8_t {
+enum class Direction : uint8_t {
     UP = 0,
+    RIGHT = 1,
     DOWN = 2,
-    LEFT = 3,
-    RIGHT = 1
+    LEFT = 3
 };
 
 struct Point {
@@ -32,16 +32,21 @@ struct Point {
 
 struct StepResult {
     bool done;
+    bool truncated;
     int score;
     float reward;
 };
 
 class SnakeEngine {
     public:
-        SnakeEngine(int width, int height);
+        static constexpr int NUM_CHANNELS = 5;
+
+        SnakeEngine(int width, int height, float gamma = 0.99f);
 
         int getWidth() const;
         int getHeight() const;
+        float getGamma() const;
+        void setGamma(float value);
 
         void reset();
         void spawnFood();
@@ -55,12 +60,17 @@ class SnakeEngine {
         const std::vector<uint8_t>& getBoardBuffer() const;
 
     private:
-        int stepsWithoutFood = 0;
-        static constexpr int MAX_STEPS_WITHOUT_FOOD = 150;
+        static constexpr int MAX_STEPS_PER_LENGTH = 100;
+        static constexpr float FOOD_REWARD = 10.0f;
+        static constexpr float DEATH_REWARD = -10.0f;
+        static constexpr float WIN_REWARD = 100.0f;
+        static constexpr float STEP_REWARD = -0.01f;
 
         int width;
         int height;
+        float gamma;
         int score;
+        int stepsWithoutFood;
 
         Point head;
         Point food;
@@ -69,5 +79,6 @@ class SnakeEngine {
         std::deque<Point> body;
         std::vector<uint8_t> boardBuffer;
 
+        bool inBounds(const Point& p) const;
         void updateBoardBuffer();
 };

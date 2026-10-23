@@ -16,18 +16,18 @@ class SnakeEnv(gym.Env):
 
     _ROTATIONS = {(-1, 0): 0, (0, 1): 1, (1, 0): 2, (0, -1): 3}
 
-    def __init__(self, width: int = 20, height: int = 15):
+    def __init__(self, width: int = 20, height: int = 15, gamma: float = 0.99):
         super().__init__()
         self.width = width
         self.height = height
-        self.engine = snake_cpp.SnakeEngine(width, height)
+        self.engine = snake_cpp.SnakeEngine(width, height, gamma)
 
         self.view_size = 2 * max(width, height) - 1
         self.center = self.view_size // 2
 
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(3, self.view_size, self.view_size), dtype=np.uint8
+            low=0, high=255, shape=(4, self.view_size, self.view_size), dtype=np.uint8
         )
 
         self._action_map = [
@@ -44,13 +44,14 @@ class SnakeEnv(gym.Env):
         ny, nx = np.argwhere(board[1])[0]
         heading = (int(hy - ny), int(hx - nx))
 
-        obs = np.zeros((3, S, S), dtype=np.uint8)
-        obs[2] = 1
+        obs = np.zeros((4, S, S), dtype=np.uint8)
+        obs[3] = 255
 
         y0, x0 = c - hy, c - hx
         obs[0, y0:y0 + H, x0:x0 + W] = board[2]
         obs[1, y0:y0 + H, x0:x0 + W] = board[3]
-        obs[2, y0:y0 + H, x0:x0 + W] = 0
+        obs[2, y0:y0 + H, x0:x0 + W] = board[4]
+        obs[3, y0:y0 + H, x0:x0 + W] = 0
 
         k = self._ROTATIONS[heading]
         return np.ascontiguousarray(np.rot90(obs, k=k, axes=(1, 2)))
@@ -69,7 +70,7 @@ class SnakeEnv(gym.Env):
         obs = self._observe()
         reward = float(result.reward)
         terminated = bool(result.done)
-        truncated = False
+        truncated = bool(result.truncated)
         info = {"score": result.score}
 
         return obs, reward, terminated, truncated, info

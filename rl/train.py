@@ -1,180 +1,227 @@
-import random
+import argparse
 from collections import deque
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Categorical
 
 from env import SnakeEnv
-from model import DuelingCNN
+from model import ActorCritic
 
 WIDTH, HEIGHT = 20, 15
-BATCH_SIZE = 64
-LR = 1e-4
-GAMMA = 0.99
-MEMORY_SIZE = 100_000
-WARMUP_STEPS = 10_000
-TRAIN_FREQ = 4
-TARGET_UPDATE_FREQ = 2_000
-EPSILON_START = 1.0
-EPSILON_END = 0.02
-EPSILON_DECAY = 250_000
-TOTAL_STEPS = 1_500_000
-LOG_FREQ = 5_000
-EVAL_FREQ = 25_000
+N_ENVS = 32
+ROLLOUT_LEN = 256
+TOTAL_STEPS = 5_000_000
+GAMMA = 0.995
+GAE_LAMBDA = 0.95
+LR = 2.5e-4
+EPOCHS = 4
+MINIBATCH_SIZE = 1024
+CLIP_EPS = 0.2
+VF_COEF = 0.5
+ENT_COEF = 0.01
+MAX_GRAD_NORM = 0.5
+REWARD_SCALE = 0.1
+EVAL_FREQ = 100_000
 EVAL_EPISODES = 20
-BEST_PATH = "snake_dqn_best.pt"
-FINAL_PATH = "snake_dqn.pt"
+BEST_PATH = "snake_ppo_best.pt"
+LATEST_PATH = "snake_ppo_latest.pt"
+FINAL_PATH = "snake_ppo.pt"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class ReplayBuffer:
-    def __init__(self, capacity: int, shape: tuple):
-        self.capacity = capacity
-        self.ptr = 0
-        self.size = 0
-
-        self.states = np.zeros((capacity, *shape), dtype=np.uint8)
-        self.actions = np.zeros((capacity,), dtype=np.int64)
-        self.rewards = np.zeros((capacity,), dtype=np.float32)
-        self.next_states = np.zeros((capacity, *shape), dtype=np.uint8)
-        self.dones = np.zeros((capacity,), dtype=np.bool_)
-
-    def push(self, state, action, reward, next_state, done):
-        self.states[self.ptr] = state
-        self.actions[self.ptr] = action
-        self.rewards[self.ptr] = reward
-        self.next_states[self.ptr] = next_state
-        self.dones[self.ptr] = done
-
-        self.ptr = (self.ptr + 1) % self.capacity
-        self.size = min(self.size + 1, self.capacity)
-
-    def sample(self, batch_size: int):
-        idx = np.random.randint(0, self.size, size=batch_size)
-        return (
-            torch.from_numpy(self.states[idx]).to(device),
-            torch.from_numpy(self.actions[idx]).to(device),
-            torch.from_numpy(self.rewards[idx]).to(device),
-            torch.from_numpy(self.next_states[idx]).to(device),
-            torch.from_numpy(self.dones[idx]).to(device),
-        )
-
-
-def evaluate(model: nn.Module, env: SnakeEnv, episodes: int):
+def evaluate(model: nn.Module, envs):
     model.eval()
-    scores = []
+    states = [env.reset()[0] for env in envs]
+    scores = [0] * len(envs)
+    timeouts = 0
+    active = list(range(len(envs)))
 
-    for _ in range(episodes):
-        state, _ = env.reset()
-        done = False
-        score = 0
+    while active:
+        batch = torch.from_numpy(np.stack([states[i] for i in active])).to(device)
+        with torch.no_grad():
+            logits, _ = model(batch)
+            actions = logits.argmax(dim=-1).cpu().numpy()
 
-        while not done:
-            with torch.no_grad():
-                st = torch.from_numpy(state).unsqueeze(0).to(device)
-                action = model(st).argmax(dim=-1).item()
-
-            state, _, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
-            score = info["score"]
-
-        scores.append(score)
+        still_active = []
+        for j, i in enumerate(active):
+            state, _, terminated, truncated, info = envs[i].step(int(actions[j]))
+            states[i] = state
+            scores[i] = info["score"]
+            if truncated:
+                timeouts += 1
+            if not (terminated or truncated):
+                still_active.append(i)
+        active = still_active
 
     model.train()
-    return float(np.mean(scores)), int(np.max(scores))
+    return float(np.mean(scores)), int(np.max(scores)), timeouts
 
 
-def train():
-    env = SnakeEnv(WIDTH, HEIGHT)
-    eval_env = SnakeEnv(WIDTH, HEIGHT)
+def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
+    envs = [SnakeEnv(WIDTH, HEIGHT, GAMMA) for _ in range(N_ENVS)]
+    eval_envs = [SnakeEnv(WIDTH, HEIGHT, GAMMA) for _ in range(EVAL_EPISODES)]
 
-    obs_shape = env.observation_space.shape
-    in_channels, obs_h, obs_w = obs_shape
+    obs_shape = envs[0].observation_space.shape
+    model = ActorCritic(*obs_shape, num_actions=3).to(device)
+    if resume_path:
+        model.load_state_dict(torch.load(resume_path, map_location=device))
+        print(f"Resumed from {resume_path} | LR: {lr} | Steps: {total_steps}")
+    optimizer = optim.Adam(model.parameters(), lr=lr, eps=1e-5)
 
-    replay_buffer = ReplayBuffer(MEMORY_SIZE, obs_shape)
+    batch_size = N_ENVS * ROLLOUT_LEN
+    num_updates = total_steps // batch_size
 
-    policy_net = DuelingCNN(in_channels, obs_h, obs_w, num_actions=3).to(device)
-    target_net = DuelingCNN(in_channels, obs_h, obs_w, num_actions=3).to(device)
-    target_net.load_state_dict(policy_net.state_dict())
-    target_net.eval()
+    obs_buf = torch.zeros((ROLLOUT_LEN, N_ENVS, *obs_shape), dtype=torch.uint8, device=device)
+    act_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), dtype=torch.long, device=device)
+    logp_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
+    rew_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
+    done_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
+    val_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
 
-    optimizer = optim.Adam(policy_net.parameters(), lr=LR)
-    criterion = nn.SmoothL1Loss()
-
-    state, _ = env.reset()
-    scores = deque(maxlen=50)
-    losses = deque(maxlen=200)
-    mean_qs = deque(maxlen=200)
+    states = np.stack([env.reset()[0] for env in envs])
+    scores = deque(maxlen=100)
     best_eval = -1.0
+    steps = 0
+    next_eval = EVAL_FREQ
 
-    for step in range(1, TOTAL_STEPS + 1):
-        epsilon = EPSILON_END + (EPSILON_START - EPSILON_END) * max(
-            0.0, (EPSILON_DECAY - step) / EPSILON_DECAY
+    for update in range(1, num_updates + 1):
+        frac = 1.0 - (update - 1) / num_updates
+        for group in optimizer.param_groups:
+            group["lr"] = lr * frac
+
+        for t in range(ROLLOUT_LEN):
+            obs_t = torch.from_numpy(states).to(device)
+            with torch.no_grad():
+                logits, value = model(obs_t)
+                dist = Categorical(logits=logits)
+                actions = dist.sample()
+                logp = dist.log_prob(actions)
+
+            obs_buf[t] = obs_t
+            act_buf[t] = actions
+            logp_buf[t] = logp
+            val_buf[t] = value
+
+            actions_np = actions.cpu().numpy()
+            rewards = np.zeros(N_ENVS, dtype=np.float32)
+            dones = np.zeros(N_ENVS, dtype=np.float32)
+            truncated_idx = []
+            truncated_obs = []
+
+            for i, env in enumerate(envs):
+                next_state, reward, terminated, truncated, info = env.step(int(actions_np[i]))
+                rewards[i] = reward * REWARD_SCALE
+
+                if terminated or truncated:
+                    dones[i] = 1.0
+                    scores.append(info["score"])
+                    if truncated and not terminated:
+                        truncated_idx.append(i)
+                        truncated_obs.append(next_state)
+                    next_state, _ = env.reset()
+
+                states[i] = next_state
+
+            if truncated_idx:
+                with torch.no_grad():
+                    _, final_values = model(torch.from_numpy(np.stack(truncated_obs)).to(device))
+                for j, i in enumerate(truncated_idx):
+                    rewards[i] += GAMMA * final_values[j].item()
+
+            rew_buf[t] = torch.from_numpy(rewards).to(device)
+            done_buf[t] = torch.from_numpy(dones).to(device)
+            steps += N_ENVS
+
+        with torch.no_grad():
+            _, next_value = model(torch.from_numpy(states).to(device))
+
+        advantages = torch.zeros_like(rew_buf)
+        last_gae = torch.zeros(N_ENVS, device=device)
+        for t in reversed(range(ROLLOUT_LEN)):
+            following_value = next_value if t == ROLLOUT_LEN - 1 else val_buf[t + 1]
+            not_done = 1.0 - done_buf[t]
+            delta = rew_buf[t] + GAMMA * following_value * not_done - val_buf[t]
+            last_gae = delta + GAMMA * GAE_LAMBDA * not_done * last_gae
+            advantages[t] = last_gae
+        returns = advantages + val_buf
+
+        b_obs = obs_buf.reshape(batch_size, *obs_shape)
+        b_act = act_buf.reshape(batch_size)
+        b_logp = logp_buf.reshape(batch_size)
+        b_adv = advantages.reshape(batch_size)
+        b_ret = returns.reshape(batch_size)
+
+        pg_losses, v_losses, entropies, kls, clipfracs = [], [], [], [], []
+
+        for _ in range(EPOCHS):
+            perm = torch.randperm(batch_size, device=device)
+            for start in range(0, batch_size, MINIBATCH_SIZE):
+                idx = perm[start:start + MINIBATCH_SIZE]
+
+                logits, values = model(b_obs[idx])
+                dist = Categorical(logits=logits)
+                new_logp = dist.log_prob(b_act[idx])
+                entropy = dist.entropy().mean()
+
+                log_ratio = new_logp - b_logp[idx]
+                ratio = log_ratio.exp()
+
+                adv = b_adv[idx]
+                adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+                pg_loss = torch.max(
+                    -adv * ratio,
+                    -adv * ratio.clamp(1.0 - CLIP_EPS, 1.0 + CLIP_EPS),
+                ).mean()
+                v_loss = 0.5 * (values - b_ret[idx]).pow(2).mean()
+                loss = pg_loss + VF_COEF * v_loss - ENT_COEF * entropy
+
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
+                optimizer.step()
+
+                with torch.no_grad():
+                    kls.append(((ratio - 1.0) - log_ratio).mean().item())
+                    clipfracs.append(((ratio - 1.0).abs() > CLIP_EPS).float().mean().item())
+                pg_losses.append(pg_loss.item())
+                v_losses.append(v_loss.item())
+                entropies.append(entropy.item())
+
+        avg_score = np.mean(scores) if scores else 0.0
+        print(
+            f"Step: {steps:8d} | Avg Score: {avg_score:5.2f} | "
+            f"Entropy: {np.mean(entropies):.3f} | Value Loss: {np.mean(v_losses):.4f} | "
+            f"KL: {np.mean(kls):.4f} | Clip: {np.mean(clipfracs):.3f}"
         )
 
-        if random.random() < epsilon:
-            action = env.action_space.sample()
-        else:
-            with torch.no_grad():
-                st = torch.from_numpy(state).unsqueeze(0).to(device)
-                q_vals = policy_net(st)
-                mean_qs.append(q_vals.max().item())
-                action = q_vals.argmax(dim=-1).item()
-
-        next_state, reward, terminated, truncated, info = env.step(action)
-
-        replay_buffer.push(state, action, reward, next_state, terminated)
-        state = next_state
-
-        if terminated or truncated:
-            scores.append(info["score"])
-            state, _ = env.reset()
-
-        if step > WARMUP_STEPS and step % TRAIN_FREQ == 0:
-            b_state, b_action, b_reward, b_next_state, b_done = replay_buffer.sample(BATCH_SIZE)
-
-            with torch.no_grad():
-                next_action = policy_net(b_next_state).argmax(dim=-1, keepdim=True)
-                next_q = target_net(b_next_state).gather(1, next_action).squeeze(1)
-                target_q = b_reward + (1.0 - b_done.float()) * GAMMA * next_q
-
-            current_q = policy_net(b_state).gather(1, b_action.unsqueeze(1)).squeeze(1)
-            loss = criterion(current_q, target_q)
-
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            nn.utils.clip_grad_norm_(policy_net.parameters(), max_norm=1.0)
-            optimizer.step()
-
-            losses.append(loss.item())
-
-        if step % TARGET_UPDATE_FREQ == 0:
-            target_net.load_state_dict(policy_net.state_dict())
-
-        if step % LOG_FREQ == 0:
-            avg_score = np.mean(scores) if scores else 0.0
-            avg_loss = np.mean(losses) if losses else 0.0
-            avg_q = np.mean(mean_qs) if mean_qs else 0.0
-            print(
-                f"Step: {step:7d} | Eps: {epsilon:.3f} | "
-                f"Avg Score: {avg_score:5.2f} | Max Q: {avg_q:+6.3f} | Loss: {avg_loss:.4f}"
-            )
-
-        if step % EVAL_FREQ == 0:
-            eval_mean, eval_max = evaluate(policy_net, eval_env, EVAL_EPISODES)
+        if steps >= next_eval:
+            next_eval += EVAL_FREQ
+            eval_mean, eval_max, eval_timeouts = evaluate(model, eval_envs)
+            torch.save(model.state_dict(), LATEST_PATH)
             marker = ""
             if eval_mean > best_eval:
                 best_eval = eval_mean
-                torch.save(policy_net.state_dict(), BEST_PATH)
+                torch.save(model.state_dict(), BEST_PATH)
                 marker = " *"
-            print(f"[Eval] Step: {step:7d} | Greedy Mean: {eval_mean:5.2f} | Max: {eval_max:3d}{marker}")
+            print(
+                f"[Eval] Step: {steps:8d} | Greedy Mean: {eval_mean:5.2f} | Max: {eval_max:3d} | "
+                f"Timeouts: {eval_timeouts}/{EVAL_EPISODES}{marker}"
+            )
 
-    torch.save(policy_net.state_dict(), FINAL_PATH)
+    torch.save(model.state_dict(), FINAL_PATH)
     print(f"Training finished. Best greedy mean: {best_eval:.2f} ({BEST_PATH}), final weights: {FINAL_PATH}")
 
 
 if __name__ == "__main__":
-    train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--resume", default=None)
+    parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--steps", type=int, default=TOTAL_STEPS)
+    args = parser.parse_args()
+    default_lr = 1e-4 if args.resume else LR
+    train(args.resume, args.lr if args.lr is not None else default_lr, args.steps)
