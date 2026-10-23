@@ -55,7 +55,8 @@ class SnakeEngine {
         const std::vector<uint8_t>& getBoardBuffer() const;
 
     private:
-        void updateBoardBuffer();
+        int stepsWithoutFood = 0;
+        static constexpr int MAX_STEPS_WITHOUT_FOOD = 150;
 
         int width;
         int height;
@@ -67,4 +68,6 @@ class SnakeEngine {
 
         std::deque<Point> body;
         std::vector<uint8_t> boardBuffer;
+
+        void updateBoardBuffer();
 };

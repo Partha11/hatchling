@@ -11,7 +11,7 @@ namespace {
 SnakeEngine::SnakeEngine(int width, int height)
     : width(width), height(height), score(0), direction(Direction::RIGHT) {
     boardBuffer.resize(
-        3 * static_cast<size_t>(width) * static_cast<size_t>(height), 0);
+        4 * static_cast<size_t>(width) * static_cast<size_t>(height), 0);
     reset();
 }
 
@@ -45,6 +45,7 @@ const std::vector<uint8_t>& SnakeEngine::getBoardBuffer() const {
 
 void SnakeEngine::reset() {
     score = 0;
+    stepsWithoutFood = 0;
     direction = Direction::RIGHT;
 
     int startX = width / 2;
@@ -110,7 +111,6 @@ StepResult SnakeEngine::step(Action action) {
     }
 
     StepResult result;
-
     result.done = false;
     result.score = score;
     result.reward = 0.0f;
@@ -118,30 +118,31 @@ StepResult SnakeEngine::step(Action action) {
     if (newHead.x < 0 || newHead.x >= width || newHead.y < 0 || newHead.y >= height) {
         result.done = true;
         result.reward = -10.0f;
-
         updateBoardBuffer();
-
         return result;
     }
 
-    for (const auto& segment: body) {
+    for (const auto& segment : body) {
         if (newHead == segment) {
             result.done = true;
             result.reward = -10.0f;
-
             updateBoardBuffer();
-
             return result;
         }
     }
 
+    int oldDist = std::abs(head.x - food.x) + std::abs(head.y - food.y);
+    int newDist = std::abs(newHead.x - food.x) + std::abs(newHead.y - food.y);
+
     body.push_front(head);
     head = newHead;
+    stepsWithoutFood++;
 
     if (head == food) {
         score += 1;
         result.score = score;
         result.reward = 10.0f;
+        stepsWithoutFood = 0;
 
         if (static_cast<int>(body.size()) + 1 >= width * height) {
             result.done = true;
@@ -151,7 +152,17 @@ StepResult SnakeEngine::step(Action action) {
         }
     } else {
         body.pop_back();
-        result.reward = 0.0f;
+
+        if (newDist < oldDist) {
+            result.reward = 0.1f;
+        } else {
+            result.reward = -0.15f;
+        }
+
+        if (stepsWithoutFood >= MAX_STEPS_WITHOUT_FOOD) {
+            result.done = true;
+            result.reward = -1.0f;
+        }
     }
 
     updateBoardBuffer();
@@ -163,11 +174,19 @@ void SnakeEngine::updateBoardBuffer() {
 
     const size_t planeSize = static_cast<size_t>(width) * static_cast<size_t>(height);
     const size_t headChannelOffset = 0 * planeSize;
-    const size_t bodyChannelOffset = 1 * planeSize;
-    const size_t foodChannelOffset = 2 * planeSize;
+    const size_t neckChannelOffset = 1 * planeSize;
+    const size_t bodyChannelOffset = 2 * planeSize;
+    const size_t foodChannelOffset = 3 * planeSize;
 
     if (head.x >= 0 && head.x < width && head.y >= 0 && head.y < height) {
         boardBuffer[headChannelOffset + head.y * width + head.x] = 1;
+    }
+
+    if (!body.empty()) {
+        const auto& neck = body.front();
+        if (neck.x >= 0 && neck.x < width && neck.y >= 0 && neck.y < height) {
+            boardBuffer[neckChannelOffset + neck.y * width + neck.x] = 1;
+        }
     }
 
     for (const auto& segment: body) {

@@ -14,8 +14,6 @@
   <a href="https://github.com/Partha11/snake_rl_agent/commits/main">
     <img src="https://img.shields.io/github/last-commit/Partha11/snake_rl_agent" alt="last update" />
   </a>
-  <a href="https://github.com/Partha11/snake_rl_agent/network/members">
-    <img src="https://img.shields.io/github/forks/Partha11/snake_rl_agent" alt="forks" />
   </a>
   <a href="https://github.com/Partha11/snake_rl_agent/stargazers">
     <img src="https://img.shields.io/github/stars/Partha11/snake_rl_agent" alt="stars" />
@@ -47,22 +45,24 @@
 <!-- Table of Contents -->
 # Table of Contents
 
-- [About the Project](#about-the-project)
-  * [Screenshots](#screenshots)
-  * [Tech Stack](#tech-stack)
-  * [Features](#features)
-- [Getting Started](#getting-started)
-  * [Prerequisites](#prerequisites)
-  * [Run Locally](#run-locally)
-- [Usage](#usage)
-  * [Controls](#controls)
-  * [Reinforcement Learning Interface](#reinforcement-learning-interface)
-- [Project Structure](#project-structure)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
-- [Acknowledgements](#acknowledgements)
+- [Table of Contents](#table-of-contents)
+  - [About the Project](#about-the-project)
+    - [Screenshots](#screenshots)
+    - [Tech Stack](#tech-stack)
+    - [Features](#features)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Run Locally](#run-locally)
+  - [Usage](#usage)
+    - [Controls](#controls)
+    - [Reinforcement Learning Interface](#reinforcement-learning-interface)
+      - [Action Space](#action-space)
+      - [Observation Space](#observation-space)
+      - [Reward Function](#reward-function)
+  - [Project Structure](#project-structure)
+  - [Roadmap](#roadmap)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 <!-- About the Project -->
 ## About the Project
@@ -249,16 +249,3 @@ Contributions are always welcome!
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
-<!-- Contact -->
-## Contact
-
-Partha - abirpartha7@gmail.com
-
-Project Link: [https://github.com/Partha11/snake_rl_agent](https://github.com/Partha11/snake_rl_agent)
-
-<!-- Acknowledgments -->
-## Acknowledgements
-
-- [Awesome README Template](https://github.com/Louis3797/awesome-readme-template)
-- [Shields.io](https://shields.io/)

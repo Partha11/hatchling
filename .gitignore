@@ -1,2 +1,11 @@
 /build/
 /build-*/
+
+# Model checkpoints
+*.pt
+
+# Python & Virtual Environments
+__pycache__/
+*.pyc
+.venv/
+venv/
