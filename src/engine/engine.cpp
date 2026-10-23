@@ -1,6 +1,7 @@
 #include "snake/engine.hpp"
 
 #include <algorithm>
+#include <array>
 #include <random>
 
 namespace {
@@ -75,6 +76,155 @@ void SnakeEngine::reset() {
 
     spawnFood();
     updateBoardBuffer();
+}
+
+void SnakeEngine::resetWithLength(int length) {
+    const int maxLength = width * height - 2;
+    length = std::max(3, std::min(length, maxLength));
+
+    if (length == 3) {
+        reset();
+        return;
+    }
+
+    bool built = false;
+    for (int attempt = 0; attempt < 10 && !built; ++attempt) {
+        built = buildRandomSnake(length);
+    }
+    if (!built) {
+        buildSerpentineSnake(length);
+    }
+
+    score = length - 3;
+    stepsWithoutFood = 0;
+    spawnFood();
+    updateBoardBuffer();
+}
+
+bool SnakeEngine::buildRandomSnake(int length) {
+    static const int DX[4] = {0, 1, 0, -1};
+    static const int DY[4] = {-1, 0, 1, 0};
+
+    std::vector<uint8_t> used(static_cast<size_t>(width) * static_cast<size_t>(height), 0);
+    auto cellIndex = [this](const Point& p) {
+        return static_cast<size_t>(p.y) * static_cast<size_t>(width) + static_cast<size_t>(p.x);
+    };
+
+    std::uniform_int_distribution<int> distX(0, width - 1);
+    std::uniform_int_distribution<int> distY(0, height - 1);
+
+    std::vector<Point> path;
+    std::vector<std::array<int, 4>> orders;
+    std::vector<int> nextChoice;
+    path.reserve(static_cast<size_t>(length));
+
+    auto pushCell = [&](const Point& p) {
+        std::array<int, 4> order = {0, 1, 2, 3};
+        std::shuffle(order.begin(), order.end(), rng);
+        path.push_back(p);
+        orders.push_back(order);
+        nextChoice.push_back(0);
+        used[cellIndex(p)] = 1;
+    };
+
+    pushCell(Point{distX(rng), distY(rng)});
+
+    long budget = 60L * length;
+    while (!path.empty() && static_cast<int>(path.size()) < length && budget-- > 0) {
+        const Point current = path.back();
+        const int k = nextChoice.back();
+
+        if (k == 4) {
+            used[cellIndex(current)] = 0;
+            path.pop_back();
+            orders.pop_back();
+            nextChoice.pop_back();
+            continue;
+        }
+
+        nextChoice.back() = k + 1;
+        const int dir = orders.back()[k];
+        const Point candidate{current.x + DX[dir], current.y + DY[dir]};
+        if (inBounds(candidate) && !used[cellIndex(candidate)]) {
+            pushCell(candidate);
+        }
+    }
+
+    if (static_cast<int>(path.size()) < length) {
+        return false;
+    }
+
+    const Point& tip = path.back();
+    bool hasExit = false;
+    for (int dir = 0; dir < 4; ++dir) {
+        const Point n{tip.x + DX[dir], tip.y + DY[dir]};
+        if (inBounds(n) && !used[cellIndex(n)]) {
+            hasExit = true;
+            break;
+        }
+    }
+    if (!hasExit) {
+        return false;
+    }
+
+    placeSnake(path);
+    return true;
+}
+
+void SnakeEngine::buildSerpentineSnake(int length) {
+    std::vector<Point> order;
+    order.reserve(static_cast<size_t>(width) * static_cast<size_t>(height));
+    for (int y = 0; y < height; ++y) {
+        if (y % 2 == 0) {
+            for (int x = 0; x < width; ++x) {
+                order.push_back(Point{x, y});
+            }
+        } else {
+            for (int x = width - 1; x >= 0; --x) {
+                order.push_back(Point{x, y});
+            }
+        }
+    }
+
+    std::uniform_int_distribution<int> flip(0, 1);
+    const bool flipX = flip(rng) == 1;
+    const bool flipY = flip(rng) == 1;
+    for (auto& p : order) {
+        if (flipX) {
+            p.x = width - 1 - p.x;
+        }
+        if (flipY) {
+            p.y = height - 1 - p.y;
+        }
+    }
+
+    const int total = static_cast<int>(order.size());
+    std::uniform_int_distribution<int> startDist(0, total - length - 1);
+    const int start = startDist(rng);
+
+    std::vector<Point> path(order.begin() + start, order.begin() + start + length);
+    placeSnake(path);
+}
+
+void SnakeEngine::placeSnake(const std::vector<Point>& path) {
+    head = path.back();
+    body.clear();
+    for (int i = static_cast<int>(path.size()) - 2; i >= 0; --i) {
+        body.push_back(path[static_cast<size_t>(i)]);
+    }
+
+    const Point& neck = body.front();
+    const int dx = head.x - neck.x;
+    const int dy = head.y - neck.y;
+    if (dx == 1) {
+        direction = Direction::RIGHT;
+    } else if (dx == -1) {
+        direction = Direction::LEFT;
+    } else if (dy == 1) {
+        direction = Direction::DOWN;
+    } else {
+        direction = Direction::UP;
+    }
 }
 
 void SnakeEngine::spawnFood() {

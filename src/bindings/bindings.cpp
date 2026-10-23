@@ -30,6 +30,7 @@ PYBIND11_MODULE(snake_cpp, m) {
         .def(py::init<int, int, float>(),
              py::arg("width") = 20, py::arg("height") = 20, py::arg("gamma") = 0.99f)
         .def("reset", &SnakeEngine::reset)
+        .def("reset_with_length", &SnakeEngine::resetWithLength, py::arg("length"))
         .def("step", &SnakeEngine::step)
         .def("get_width", &SnakeEngine::getWidth)
         .def("get_height", &SnakeEngine::getHeight)

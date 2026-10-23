@@ -1,4 +1,5 @@
 import argparse
+import random
 from collections import deque
 
 import numpy as np
@@ -12,11 +13,9 @@ from model import ActorCritic
 
 WIDTH, HEIGHT = 20, 15
 N_ENVS = 32
-ROLLOUT_LEN = 256
 TOTAL_STEPS = 5_000_000
-GAMMA = 0.995
-GAE_LAMBDA = 0.95
 LR = 2.5e-4
+RESUME_LR = 1e-4
 EPOCHS = 4
 MINIBATCH_SIZE = 1024
 CLIP_EPS = 0.2
@@ -25,12 +24,33 @@ ENT_COEF = 0.01
 MAX_GRAD_NORM = 0.5
 REWARD_SCALE = 0.1
 EVAL_FREQ = 100_000
-EVAL_EPISODES = 20
-BEST_PATH = "snake_ppo_best.pt"
-LATEST_PATH = "snake_ppo_latest.pt"
-FINAL_PATH = "snake_ppo.pt"
+EVAL_EPISODES = 50
+
+DEFAULT_GAMMA = 0.998
+DEFAULT_LAMBDA = 0.97
+DEFAULT_ROLLOUT = 256
+DEFAULT_LONG_START = 0.0
+DEFAULT_LONG_MIN = 100
+DEFAULT_LONG_MAX = 250
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def checkpoint_paths(tag: str):
+    prefix = f"snake_ppo_{tag}" if tag else "snake_ppo"
+    return f"{prefix}_best.pt", f"{prefix}_latest.pt", f"{prefix}.pt"
+
+
+LONG_RANGE = [DEFAULT_LONG_MIN, DEFAULT_LONG_MAX]
+
+
+def reset_env(env: SnakeEnv, long_start_prob: float):
+    if long_start_prob > 0.0 and random.random() < long_start_prob:
+        length = random.randint(LONG_RANGE[0], LONG_RANGE[1])
+        state, _ = env.reset(options={"length": length})
+        return state, True
+    state, _ = env.reset()
+    return state, False
 
 
 def evaluate(model: nn.Module, envs):
@@ -61,29 +81,44 @@ def evaluate(model: nn.Module, envs):
     return float(np.mean(scores)), int(np.max(scores)), timeouts
 
 
-def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
-    envs = [SnakeEnv(WIDTH, HEIGHT, GAMMA) for _ in range(N_ENVS)]
-    eval_envs = [SnakeEnv(WIDTH, HEIGHT, GAMMA) for _ in range(EVAL_EPISODES)]
+def train(gamma, gae_lambda, rollout_len, long_start_prob, tag, resume_path, lr, total_steps):
+    best_path, latest_path, final_path = checkpoint_paths(tag)
+
+    envs = [SnakeEnv(WIDTH, HEIGHT, gamma) for _ in range(N_ENVS)]
+    eval_envs = [SnakeEnv(WIDTH, HEIGHT, gamma) for _ in range(EVAL_EPISODES)]
 
     obs_shape = envs[0].observation_space.shape
     model = ActorCritic(*obs_shape, num_actions=3).to(device)
     if resume_path:
         model.load_state_dict(torch.load(resume_path, map_location=device))
-        print(f"Resumed from {resume_path} | LR: {lr} | Steps: {total_steps}")
     optimizer = optim.Adam(model.parameters(), lr=lr, eps=1e-5)
 
-    batch_size = N_ENVS * ROLLOUT_LEN
+    print(
+        f"gamma={gamma} lambda={gae_lambda} rollout={rollout_len} long_start={long_start_prob} "
+        f"long_range={LONG_RANGE[0]}-{LONG_RANGE[1]} "
+        f"lr={lr} steps={total_steps} resume={resume_path} -> {best_path}"
+    )
+
+    batch_size = N_ENVS * rollout_len
     num_updates = total_steps // batch_size
 
-    obs_buf = torch.zeros((ROLLOUT_LEN, N_ENVS, *obs_shape), dtype=torch.uint8, device=device)
-    act_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), dtype=torch.long, device=device)
-    logp_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
-    rew_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
-    done_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
-    val_buf = torch.zeros((ROLLOUT_LEN, N_ENVS), device=device)
+    obs_buf = torch.zeros((rollout_len, N_ENVS, *obs_shape), dtype=torch.uint8, device=device)
+    act_buf = torch.zeros((rollout_len, N_ENVS), dtype=torch.long, device=device)
+    logp_buf = torch.zeros((rollout_len, N_ENVS), device=device)
+    rew_buf = torch.zeros((rollout_len, N_ENVS), device=device)
+    done_buf = torch.zeros((rollout_len, N_ENVS), device=device)
+    val_buf = torch.zeros((rollout_len, N_ENVS), device=device)
 
-    states = np.stack([env.reset()[0] for env in envs])
+    states = []
+    long_flags = []
+    for env in envs:
+        state, is_long = reset_env(env, long_start_prob)
+        states.append(state)
+        long_flags.append(is_long)
+    states = np.stack(states)
+
     scores = deque(maxlen=100)
+    long_start_games = 0
     best_eval = -1.0
     steps = 0
     next_eval = EVAL_FREQ
@@ -93,7 +128,7 @@ def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
         for group in optimizer.param_groups:
             group["lr"] = lr * frac
 
-        for t in range(ROLLOUT_LEN):
+        for t in range(rollout_len):
             obs_t = torch.from_numpy(states).to(device)
             with torch.no_grad():
                 logits, value = model(obs_t)
@@ -118,11 +153,14 @@ def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
 
                 if terminated or truncated:
                     dones[i] = 1.0
-                    scores.append(info["score"])
+                    if long_flags[i]:
+                        long_start_games += 1
+                    else:
+                        scores.append(info["score"])
                     if truncated and not terminated:
                         truncated_idx.append(i)
                         truncated_obs.append(next_state)
-                    next_state, _ = env.reset()
+                    next_state, long_flags[i] = reset_env(env, long_start_prob)
 
                 states[i] = next_state
 
@@ -130,7 +168,7 @@ def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
                 with torch.no_grad():
                     _, final_values = model(torch.from_numpy(np.stack(truncated_obs)).to(device))
                 for j, i in enumerate(truncated_idx):
-                    rewards[i] += GAMMA * final_values[j].item()
+                    rewards[i] += gamma * final_values[j].item()
 
             rew_buf[t] = torch.from_numpy(rewards).to(device)
             done_buf[t] = torch.from_numpy(dones).to(device)
@@ -141,11 +179,11 @@ def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
 
         advantages = torch.zeros_like(rew_buf)
         last_gae = torch.zeros(N_ENVS, device=device)
-        for t in reversed(range(ROLLOUT_LEN)):
-            following_value = next_value if t == ROLLOUT_LEN - 1 else val_buf[t + 1]
+        for t in reversed(range(rollout_len)):
+            following_value = next_value if t == rollout_len - 1 else val_buf[t + 1]
             not_done = 1.0 - done_buf[t]
-            delta = rew_buf[t] + GAMMA * following_value * not_done - val_buf[t]
-            last_gae = delta + GAMMA * GAE_LAMBDA * not_done * last_gae
+            delta = rew_buf[t] + gamma * following_value * not_done - val_buf[t]
+            last_gae = delta + gamma * gae_lambda * not_done * last_gae
             advantages[t] = last_gae
         returns = advantages + val_buf
 
@@ -155,7 +193,7 @@ def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
         b_adv = advantages.reshape(batch_size)
         b_ret = returns.reshape(batch_size)
 
-        pg_losses, v_losses, entropies, kls, clipfracs = [], [], [], [], []
+        v_losses, entropies, kls, clipfracs = [], [], [], []
 
         for _ in range(EPOCHS):
             perm = torch.randperm(batch_size, device=device)
@@ -188,40 +226,51 @@ def train(resume_path=None, lr=LR, total_steps=TOTAL_STEPS):
                 with torch.no_grad():
                     kls.append(((ratio - 1.0) - log_ratio).mean().item())
                     clipfracs.append(((ratio - 1.0).abs() > CLIP_EPS).float().mean().item())
-                pg_losses.append(pg_loss.item())
                 v_losses.append(v_loss.item())
                 entropies.append(entropy.item())
 
         avg_score = np.mean(scores) if scores else 0.0
-        print(
+        line = (
             f"Step: {steps:8d} | Avg Score: {avg_score:5.2f} | "
             f"Entropy: {np.mean(entropies):.3f} | Value Loss: {np.mean(v_losses):.4f} | "
             f"KL: {np.mean(kls):.4f} | Clip: {np.mean(clipfracs):.3f}"
         )
+        if long_start_prob > 0.0:
+            line += f" | Long Starts: {long_start_games}"
+        print(line)
 
         if steps >= next_eval:
             next_eval += EVAL_FREQ
             eval_mean, eval_max, eval_timeouts = evaluate(model, eval_envs)
-            torch.save(model.state_dict(), LATEST_PATH)
+            torch.save(model.state_dict(), latest_path)
             marker = ""
             if eval_mean > best_eval:
                 best_eval = eval_mean
-                torch.save(model.state_dict(), BEST_PATH)
+                torch.save(model.state_dict(), best_path)
                 marker = " *"
             print(
-                f"[Eval] Step: {steps:8d} | Greedy Mean: {eval_mean:5.2f} | Max: {eval_max:3d} | "
+                f"[Eval] Step: {steps:8d} | Greedy Mean: {eval_mean:6.2f} | Max: {eval_max:3d} | "
                 f"Timeouts: {eval_timeouts}/{EVAL_EPISODES}{marker}"
             )
 
-    torch.save(model.state_dict(), FINAL_PATH)
-    print(f"Training finished. Best greedy mean: {best_eval:.2f} ({BEST_PATH}), final weights: {FINAL_PATH}")
+    torch.save(model.state_dict(), final_path)
+    print(f"Training finished. Best greedy mean: {best_eval:.2f} ({best_path}), final weights: {final_path}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--gamma", type=float, default=DEFAULT_GAMMA)
+    parser.add_argument("--lam", type=float, default=DEFAULT_LAMBDA)
+    parser.add_argument("--rollout", type=int, default=DEFAULT_ROLLOUT)
+    parser.add_argument("--long-start", type=float, default=DEFAULT_LONG_START)
+    parser.add_argument("--long-min", type=int, default=DEFAULT_LONG_MIN)
+    parser.add_argument("--long-max", type=int, default=DEFAULT_LONG_MAX)
+    parser.add_argument("--tag", default="")
     parser.add_argument("--resume", default=None)
     parser.add_argument("--lr", type=float, default=None)
     parser.add_argument("--steps", type=int, default=TOTAL_STEPS)
     args = parser.parse_args()
-    default_lr = 1e-4 if args.resume else LR
-    train(args.resume, args.lr if args.lr is not None else default_lr, args.steps)
+
+    LONG_RANGE[0], LONG_RANGE[1] = args.long_min, args.long_max
+    lr = args.lr if args.lr is not None else (RESUME_LR if args.resume else LR)
+    train(args.gamma, args.lam, args.rollout, args.long_start, args.tag, args.resume, lr, args.steps)

@@ -16,13 +16,17 @@ class SnakeEnv(gym.Env):
 
     _ROTATIONS = {(-1, 0): 0, (0, 1): 1, (1, 0): 2, (0, -1): 3}
 
-    def __init__(self, width: int = 20, height: int = 15, gamma: float = 0.99):
+    def __init__(self, width: int = 20, height: int = 15, gamma: float = 0.99, view_size: int = 39):
         super().__init__()
         self.width = width
         self.height = height
         self.engine = snake_cpp.SnakeEngine(width, height, gamma)
 
-        self.view_size = 2 * max(width, height) - 1
+        if view_size < 2 * max(width, height) - 1:
+            raise ValueError(f"view_size {view_size} is too small for a {width}x{height} board")
+        if view_size % 2 == 0:
+            raise ValueError("view_size must be odd so the head sits in the center")
+        self.view_size = view_size
         self.center = self.view_size // 2
 
         self.action_space = spaces.Discrete(3)
@@ -61,7 +65,11 @@ class SnakeEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        self.engine.reset()
+        length = (options or {}).get("length")
+        if length:
+            self.engine.reset_with_length(int(length))
+        else:
+            self.engine.reset()
         return self._observe(), {}
 
     def step(self, action: int):

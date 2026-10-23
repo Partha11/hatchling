@@ -49,6 +49,7 @@ class SnakeEngine {
         void setGamma(float value);
 
         void reset();
+        void resetWithLength(int length);
         void spawnFood();
         StepResult step(Action action);
 
@@ -80,5 +81,8 @@ class SnakeEngine {
         std::vector<uint8_t> boardBuffer;
 
         bool inBounds(const Point& p) const;
+        bool buildRandomSnake(int length);
+        void buildSerpentineSnake(int length);
+        void placeSnake(const std::vector<Point>& path);
         void updateBoardBuffer();
 };

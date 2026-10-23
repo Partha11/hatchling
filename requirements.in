@@ -1,0 +1,4 @@
+# Core RL and Simulation Dependencies
+gymnasium
+numpy
+torch
