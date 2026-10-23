@@ -4,13 +4,34 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <conio.h>
+#else
 #include <termios.h>
 #include <unistd.h>
 #include <poll.h>
+#endif
 
 class TerminalController {
     public:
         TerminalController() {
+#ifdef _WIN32
+            hOut_ = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (hOut_ != INVALID_HANDLE_VALUE) {
+                if (GetConsoleMode(hOut_, &orig_out_mode_)) {
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+                    SetConsoleMode(hOut_, orig_out_mode_ | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+                }
+            }
+            std::cout << "\033[?25l\033[2J\033[H" << std::flush;
+#else
             tcgetattr(STDIN_FILENO, &orig_termios_);
             struct termios raw = orig_termios_;
 
@@ -22,14 +43,40 @@ class TerminalController {
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 
             std::cout << "\033[?25l\033[2J\033[H" << std::flush;
+#endif
         }
 
         ~TerminalController() {
             std::cout << "\033[?25h" << std::endl;
+#ifdef _WIN32
+            if (hOut_ != INVALID_HANDLE_VALUE) {
+                SetConsoleMode(hOut_, orig_out_mode_);
+            }
+#else
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios_);
+#endif
         }
 
         int readKey() {
+#ifdef _WIN32
+            if (_kbhit()) {
+                int c = _getch();
+                if (c == 0 || c == 224) {
+                    switch (_getch()) {
+                        case 72: return 'w'; // Up
+                        case 80: return 's'; // Down
+                        case 75: return 'a'; // Left
+                        case 77: return 'd'; // Right
+                        default: return -1;
+                    }
+                }
+                if (c == 27) { // Escape
+                    return 'q';
+                }
+                return c;
+            }
+            return -1;
+#else
             struct pollfd pfd = {STDIN_FILENO, POLLIN, 0};
             int ret = poll(&pfd, 1, 0);
 
@@ -55,10 +102,16 @@ class TerminalController {
                 }
             }
             return -1;
+#endif
         }
 
     private:
+#ifdef _WIN32
+        HANDLE hOut_ = INVALID_HANDLE_VALUE;
+        DWORD orig_out_mode_ = 0;
+#else
         struct termios orig_termios_;
+#endif
 };
 
 Action getRelativeAction(Direction currentDirection, char key) {
