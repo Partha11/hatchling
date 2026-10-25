@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <vector>
@@ -30,6 +31,11 @@ struct Point {
     }
 };
 
+enum class OrderEncoding : uint8_t {
+    RELATIVE = 0,
+    INVERSE = 1
+};
+
 struct StepResult {
     bool done;
     bool truncated;
@@ -40,6 +46,7 @@ struct StepResult {
 class SnakeEngine {
     public:
         static constexpr int NUM_CHANNELS = 5;
+        static constexpr bool TAIL_IS_SOLID = true;
 
         SnakeEngine(int width, int height, float gamma = 0.99f);
 
@@ -47,6 +54,8 @@ class SnakeEngine {
         int getHeight() const;
         float getGamma() const;
         void setGamma(float value);
+        OrderEncoding getOrderEncoding() const;
+        void setOrderEncoding(OrderEncoding value);
 
         void reset();
         void resetWithLength(int length);
@@ -57,19 +66,23 @@ class SnakeEngine {
         const std::deque<Point>& getSnakeBody() const;
         Point getFood() const;
         Direction getSnakeDirection() const;
+        std::array<uint8_t, 3> getDanger() const;
+        std::vector<Point> getTailSegments(int count) const;
 
         const std::vector<uint8_t>& getBoardBuffer() const;
 
     private:
         static constexpr int MAX_STEPS_PER_LENGTH = 100;
         static constexpr float FOOD_REWARD = 10.0f;
-        static constexpr float DEATH_REWARD = -10.0f;
+        static constexpr float DEATH_REWARD = -50.0f;
+        static constexpr float DEATH_PER_LENGTH = 0.0f;
         static constexpr float WIN_REWARD = 100.0f;
         static constexpr float STEP_REWARD = -0.01f;
 
         int width;
         int height;
         float gamma;
+        OrderEncoding orderEncoding = OrderEncoding::RELATIVE;
         int score;
         int stepsWithoutFood;
 
@@ -81,6 +94,7 @@ class SnakeEngine {
         std::vector<uint8_t> boardBuffer;
 
         bool inBounds(const Point& p) const;
+        float deathReward() const;
         bool buildRandomSnake(int length);
         void buildSerpentineSnake(int length);
         void placeSnake(const std::vector<Point>& path);

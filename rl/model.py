@@ -84,6 +84,7 @@ class ActorCritic(nn.Module):
         num_blocks: int = 3,
         head_channels: int = 32,
         hidden: int = 512,
+        danger_head: bool = False,
     ):
         super().__init__()
 
@@ -96,14 +97,21 @@ class ActorCritic(nn.Module):
         )
         self.policy = nn.Linear(hidden, num_actions)
         self.value = nn.Linear(hidden, 1)
+        self.danger = nn.Linear(hidden, num_actions) if danger_head else None
 
         nn.init.orthogonal_(self.policy.weight, gain=0.01)
         nn.init.zeros_(self.policy.bias)
         nn.init.orthogonal_(self.value.weight, gain=1.0)
         nn.init.zeros_(self.value.bias)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, return_danger: bool = False):
         x = x.float() / 255.0
         features = self.conv(x)
         features = self.shared(features.view(features.size(0), -1))
-        return self.policy(features), self.value(features).squeeze(-1)
+        policy = self.policy(features)
+        value = self.value(features).squeeze(-1)
+        if return_danger:
+            if self.danger is None:
+                raise ValueError("this model has no danger head")
+            return policy, value, self.danger(features)
+        return policy, value

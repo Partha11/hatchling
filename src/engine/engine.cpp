@@ -36,6 +36,15 @@ void SnakeEngine::setGamma(float value) {
     gamma = value;
 }
 
+OrderEncoding SnakeEngine::getOrderEncoding() const {
+    return orderEncoding;
+}
+
+void SnakeEngine::setOrderEncoding(OrderEncoding value) {
+    orderEncoding = value;
+    updateBoardBuffer();
+}
+
 const Point& SnakeEngine::getSnakeHead() const {
     return head;
 }
@@ -54,6 +63,48 @@ Direction SnakeEngine::getSnakeDirection() const {
 
 const std::vector<uint8_t>& SnakeEngine::getBoardBuffer() const {
     return boardBuffer;
+}
+
+std::array<uint8_t, 3> SnakeEngine::getDanger() const {
+    static const int DX[4] = {0, 1, 0, -1};
+    static const int DY[4] = {-1, 0, 1, 0};
+    static const int TURN[3] = {0, 3, 1};
+
+    std::array<uint8_t, 3> danger{};
+    const int dir = static_cast<int>(direction);
+    for (int a = 0; a < 3; ++a) {
+        const int d = (dir + TURN[a]) % 4;
+        const Point target{head.x + DX[d], head.y + DY[d]};
+        if (!inBounds(target)) {
+            danger[a] = 1;
+            continue;
+        }
+        const bool eating = target == food;
+        const size_t blocking = (eating || TAIL_IS_SOLID) ? body.size() : body.size() - 1;
+        for (size_t i = 0; i < blocking; ++i) {
+            if (target == body[i]) {
+                danger[a] = 1;
+                break;
+            }
+        }
+    }
+    return danger;
+}
+
+std::vector<Point> SnakeEngine::getTailSegments(int count) const {
+    std::vector<Point> segments;
+    const int n = static_cast<int>(body.size());
+    const int take = std::max(0, std::min(count, n));
+    segments.reserve(static_cast<size_t>(take));
+    for (int k = 0; k < take; ++k) {
+        segments.push_back(body[static_cast<size_t>(n - 1 - k)]);
+    }
+    return segments;
+}
+
+float SnakeEngine::deathReward() const {
+    const int length = static_cast<int>(body.size()) + 1;
+    return DEATH_REWARD + DEATH_PER_LENGTH * static_cast<float>(length);
 }
 
 bool SnakeEngine::inBounds(const Point& p) const {
@@ -280,18 +331,18 @@ StepResult SnakeEngine::step(Action action) {
 
     if (!inBounds(newHead)) {
         result.done = true;
-        result.reward = DEATH_REWARD;
+        result.reward = deathReward();
         updateBoardBuffer();
         return result;
     }
 
     const bool eating = (newHead == food);
-    const size_t blocking = eating ? body.size() : body.size() - 1;
+    const size_t blocking = (eating || TAIL_IS_SOLID) ? body.size() : body.size() - 1;
 
     for (size_t i = 0; i < blocking; ++i) {
         if (newHead == body[i]) {
             result.done = true;
-            result.reward = DEATH_REWARD;
+            result.reward = deathReward();
             updateBoardBuffer();
             return result;
         }
@@ -357,8 +408,11 @@ void SnakeEngine::updateBoardBuffer() {
             continue;
         }
         boardBuffer[bodyOffset + cell(segment)] = 255;
-        boardBuffer[orderOffset + cell(segment)] =
-            static_cast<uint8_t>((255 * (n - i) + n - 1) / n);
+        const size_t steps = n - i;
+        const size_t value = orderEncoding == OrderEncoding::INVERSE
+            ? (255 + steps - 1) / steps
+            : (255 * steps + n - 1) / n;
+        boardBuffer[orderOffset + cell(segment)] = static_cast<uint8_t>(value);
     }
 
     if (inBounds(food)) {
