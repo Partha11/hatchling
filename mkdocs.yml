@@ -1,0 +1,96 @@
+site_name: Hatchling
+site_description: Hatchling is a C++17 Snake engine and a reinforcement learning agent that learned to fill the whole board
+site_author: Abir Partha
+site_url: https://partha11.github.io/snake_rl_agent/
+
+repo_name: GitHub
+repo_url: https://github.com/Partha11/snake_rl_agent/
+edit_uri: 'docs/'
+
+theme:
+  name: shadcn
+  language: en
+  show_title: true
+  show_stargazers: true
+  pygments_style:
+    light: shadcn-light
+    dark: github-dark
+  icon: lucide:egg
+  topbar_sections: false
+  show_datetime: false
+
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: cyan
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: cyan
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+extra:
+  generator: false
+
+extra_css:
+  - stylesheets/custom.css
+
+extra_javascript:
+  - js/mermaid.js
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - codehilite:
+      guess_lang: false
+  - fenced_code
+  - pymdownx.tabbed
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.blocks.caption
+  - shadcn.extensions.echarts.alpha
+
+plugins:
+  - search
+  - git-revision-date
+
+nav:
+  - Home: index.md
+  - The Story:
+      - The Beginning: story/01-building-the-game.md
+      - First Steps: story/02-first-steps.md
+      - Looking Ahead: story/03-looking-ahead.md
+      - Confident Blunders: story/04-confident-blunders.md
+      - Changing the Rules: story/05-changing-the-rules.md
+      - Learning from Mistakes: story/06-learning-from-mistakes.md
+      - Like a Child: story/07-like-a-child.md
+      - Raising the Stakes: story/08-raising-the-stakes.md
+      - The First Wins: story/09-the-first-wins.md
+      - Dead Ends: story/10-what-did-not-work.md
+      - Where It Stands: story/11-where-it-stands.md
+  - Game:
+      - Playing: game/playing.md
+      - Building: game/building.md
+      - Rules and Rewards: game/rules.md
+      - Engine: game/engine.md
+  - Agent:
+      - Setup: agent/setup.md
+      - Training: agent/training.md
+      - Diagnostics: agent/diagnostics.md
+  - Contribution:
+      - Contribution: contributing.md

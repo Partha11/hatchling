@@ -1,0 +1,5 @@
+# Documentation dependencies
+mkdocs
+mkdocs-shadcn
+pymdown-extensions
+mkdocs-git-revision-date-plugin

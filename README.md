@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1>Snake RL</h1>
+  <h1>Hatchling</h1>
 
   <p>
     A Snake game engine in C++17, and a reinforcement learning agent that learned to fill the whole board
@@ -36,7 +36,7 @@
 
 ## About
 
-Snake RL is two things in one repository:
+Hatchling is two things in one repository:
 
 - **A Snake game** with a fast C++17 engine and a terminal frontend that runs on Linux and Windows.
 - **A reinforcement learning agent** that plays it. The engine is exposed to Python through pybind11, and a PPO agent trained on it sees only the board, chooses between the arrow keys and learns from the score. The trained agent fills the entire 20 &times; 15 board in about one game out of five.
