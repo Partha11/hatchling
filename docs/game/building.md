@@ -16,8 +16,8 @@ Building from source gives you the terminal game and the Python module the agent
 Clone the repository and build in release mode:
 
 ```bash
-git clone https://github.com/Partha11/snake_rl_agent.git
-cd snake_rl_agent
+git clone https://github.com/Partha11/hatchling.git
+cd hatchling
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```

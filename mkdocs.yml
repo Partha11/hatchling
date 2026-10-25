@@ -1,10 +1,10 @@
 site_name: Hatchling
 site_description: Hatchling is a C++17 Snake engine and a reinforcement learning agent that learned to fill the whole board
 site_author: Abir Partha
-site_url: https://partha11.github.io/snake_rl_agent/
+site_url: https://partha11.github.io/hatchling/
 
 repo_name: GitHub
-repo_url: https://github.com/Partha11/snake_rl_agent/
+repo_url: https://github.com/Partha11/hatchling/
 edit_uri: 'docs/'
 
 theme:

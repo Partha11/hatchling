@@ -4,7 +4,7 @@ You can play Hatchling yourself in a terminal. No setup is needed if you use a p
 
 ## Download
 
-Every [release](https://github.com/Partha11/snake_rl_agent/releases) comes with ready-to-run binaries for Linux and Windows. Download the one for your system and start it from a terminal.
+Every [release](https://github.com/Partha11/hatchling/releases) comes with ready-to-run binaries for Linux and Windows. Download the one for your system and start it from a terminal.
 
 === "Linux"
 

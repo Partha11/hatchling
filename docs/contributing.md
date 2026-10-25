@@ -4,7 +4,7 @@ Contributions are welcome, whether it is a bug fix, a new experiment or a correc
 
 ## Reporting a problem
 
-Open an [issue](https://github.com/Partha11/snake_rl_agent/issues) with your operating system, how you ran the game or the script, and what happened. For agent problems, the output of `play.py` or `diagnose.py` helps a lot.
+Open an [issue](https://github.com/Partha11/hatchling/issues) with your operating system, how you ran the game or the script, and what happened. For agent problems, the output of `play.py` or `diagnose.py` helps a lot.
 
 ## Making a change
 
