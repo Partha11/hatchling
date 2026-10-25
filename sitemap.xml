@@ -1,83 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/</loc>
+         <loc>https://partha11.github.io/hatchling/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/contributing/</loc>
+         <loc>https://partha11.github.io/hatchling/contributing/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/agent/diagnostics/</loc>
+         <loc>https://partha11.github.io/hatchling/agent/diagnostics/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/agent/setup/</loc>
+         <loc>https://partha11.github.io/hatchling/agent/setup/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/agent/training/</loc>
+         <loc>https://partha11.github.io/hatchling/agent/training/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/game/building/</loc>
+         <loc>https://partha11.github.io/hatchling/game/building/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/game/engine/</loc>
+         <loc>https://partha11.github.io/hatchling/game/engine/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/game/playing/</loc>
+         <loc>https://partha11.github.io/hatchling/game/playing/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/game/rules/</loc>
+         <loc>https://partha11.github.io/hatchling/game/rules/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/01-building-the-game/</loc>
+         <loc>https://partha11.github.io/hatchling/story/01-building-the-game/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/02-first-steps/</loc>
+         <loc>https://partha11.github.io/hatchling/story/02-first-steps/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/03-looking-ahead/</loc>
+         <loc>https://partha11.github.io/hatchling/story/03-looking-ahead/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/04-confident-blunders/</loc>
+         <loc>https://partha11.github.io/hatchling/story/04-confident-blunders/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/05-changing-the-rules/</loc>
+         <loc>https://partha11.github.io/hatchling/story/05-changing-the-rules/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/06-learning-from-mistakes/</loc>
+         <loc>https://partha11.github.io/hatchling/story/06-learning-from-mistakes/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/07-like-a-child/</loc>
+         <loc>https://partha11.github.io/hatchling/story/07-like-a-child/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/08-raising-the-stakes/</loc>
+         <loc>https://partha11.github.io/hatchling/story/08-raising-the-stakes/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/09-the-first-wins/</loc>
+         <loc>https://partha11.github.io/hatchling/story/09-the-first-wins/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/10-what-did-not-work/</loc>
+         <loc>https://partha11.github.io/hatchling/story/10-what-did-not-work/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
     <url>
-         <loc>https://partha11.github.io/snake_rl_agent/story/11-where-it-stands/</loc>
+         <loc>https://partha11.github.io/hatchling/story/11-where-it-stands/</loc>
          <lastmod>2026-10-25</lastmod>
     </url>
 </urlset>
