@@ -51,7 +51,7 @@ Building it inside the activated environment makes sure CMake picks up the right
 
 ## Watch the agent play
 
-Download the trained weights, `snake_ppo_child_best.pt`, from the [releases](https://github.com/Partha11/hatchling/releases) page and put them in the repository folder. Then start a game:
+Download the trained weights, `snake_ppo_child_best.pt`, from [Google Drive](https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing) or the [releases](https://github.com/Partha11/hatchling/releases) page and put them in the repository folder. Then start a game:
 
 ```bash
 python rl/play.py --weights snake_ppo_child_best.pt

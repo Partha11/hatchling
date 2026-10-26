@@ -27,6 +27,8 @@
   <span> · </span>
   <a href="https://github.com/Partha11/hatchling/releases">Download</a>
   <span> · </span>
+  <a href="https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing">Model Weights</a>
+  <span> · </span>
   <a href="https://github.com/Partha11/hatchling/issues/">Report Bug</a>
 </h4>
 
@@ -79,7 +81,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target snake_cpp
 ```
 
-Download the trained weights (`snake_ppo_child_best.pt`) from the [releases](https://github.com/Partha11/hatchling/releases) page and watch the agent play:
+Download the trained weights (`snake_ppo_child_best.pt`) from [Google Drive](https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing) (or the [releases](https://github.com/Partha11/hatchling/releases) page) and watch the agent play:
 
 ```bash
 python rl/play.py --weights snake_ppo_child_best.pt
