@@ -12,7 +12,7 @@ The final agent is the child mode model after 30 million steps of training. It s
 | Games below 100 | 6% |
 | Training | 30 million steps |
 
-The trained weights are available on [Google Drive](https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing) and published with the [releases](https://github.com/Partha11/hatchling/releases), so you can [watch it play](../agent/setup.md) yourself. Most games end with the board almost completely full, and about one in five ends with every cell filled.
+The trained weights are available on [Google Drive](https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing), so you can [watch it play](../agent/setup.md) yourself. Most games end with the board almost completely full, and about one in five ends with every cell filled.
 
 ## What could come next
 
