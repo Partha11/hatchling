@@ -65,4 +65,4 @@ The story is told in eleven chapters. Some ideas worked and many did not, and th
 
 ## Try it yourself
 
-You can [play the game](game/playing.md) yourself, [watch the trained agent](agent/setup.md) play, or [train your own](agent/training.md). Everything you need is in the repository, and the trained weights can be downloaded from [Google Drive](https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing) or GitHub [releases](https://github.com/Partha11/hatchling/releases).
+You can [play the game](game/playing.md) yourself, [watch the trained agent](agent/setup.md) play, or [train your own](agent/training.md). Everything you need is in the repository, and the trained weights can be downloaded from [Google Drive](https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing).
