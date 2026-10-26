@@ -716,11 +716,11 @@
 <p>The final agent plays on a 20 by 15 board. It sees what a player sees, the board, the snake and the food, and it presses the arrow keys. It learns from the score and nothing else.</p>
 <p>It averages 267 points out of a possible 297. In about one game out of five, it fills every single cell of the board and wins. Nobody taught it how. It worked out its own strategy: a tidy back and forth sweep that keeps the board open until the very end.</p>
 <figure>
-<div class="echarts" id="LFpYsh" style="width:100%;height:380px;">
+<div class="echarts" id="nUNsi4" style="width:100%;height:380px;">
 <script defer="true" type="text/javascript">
-        const targetLFpYsh = document.getElementById('LFpYsh');
-        const chartLFpYsh = echarts.init(targetLFpYsh, 'shadcn', { renderer: 'svg' });
-        chartLFpYsh.setOption({
+        const targetnUNsi4 = document.getElementById('nUNsi4');
+        const chartnUNsi4 = echarts.init(targetnUNsi4, 'shadcn', { renderer: 'svg' });
+        chartnUNsi4.setOption({
   tooltip: { trigger: "axis" },
   grid: { left: 50, right: 20, top: 30, bottom: 90 },
   xAxis: {
@@ -736,17 +736,17 @@
     itemStyle: { color: "#0891b2", borderRadius: [4, 4, 0, 0] }
   }]
 });
-        window.addEventListener('resize', function() { chartLFpYsh.resize(); });
-        const observerLFpYsh = new IntersectionObserver((entries) => {
+        window.addEventListener('resize', function() { chartnUNsi4.resize(); });
+        const observernUNsi4 = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    chartLFpYsh.resize();
-                    observerLFpYsh.disconnect(); // Stop observing if you want a one-time trigger
+                    chartnUNsi4.resize();
+                    observernUNsi4.disconnect(); // Stop observing if you want a one-time trigger
                 }
             });
         });
 
-        observerLFpYsh.observe(targetLFpYsh);
+        observernUNsi4.observe(targetnUNsi4);
         </script>
 </div>
 <figcaption>
@@ -810,7 +810,7 @@
 </tbody>
 </table></div>
 <h2 id="try-it-yourself">Try it yourself<a class="headerlink" href="#try-it-yourself" title="Permanent link">&para;</a></h2>
-<p>You can <a href="game/playing/">play the game</a> yourself, <a href="agent/setup/">watch the trained agent</a> play, or <a href="agent/training/">train your own</a>. Everything you need is in the repository, including the trained weights.</p>
+<p>You can <a href="game/playing/">play the game</a> yourself, <a href="agent/setup/">watch the trained agent</a> play, or <a href="agent/training/">train your own</a>. Everything you need is in the repository, and the trained weights can be downloaded from <a href="https://drive.google.com/file/d/1LhTzv9P-ccbPSU1H_k5CRBCBj3OpRa9v/view?usp=sharing">Google Drive</a> or GitHub <a href="https://github.com/Partha11/hatchling/releases">releases</a>.</p>
   </div>
 </article>
                                 <div id="bottom-navigation" class="mx-auto flex h-16 w-full max-w-2xl items-center justify-between gap-2 px-4 md:px-0">
